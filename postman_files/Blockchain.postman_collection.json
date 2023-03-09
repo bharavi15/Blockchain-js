@@ -1,0 +1,78 @@
+{
+	"info": {
+		"_postman_id": "b63b54c7-4fbf-48c0-a705-5ddd6111fba9",
+		"name": "Blockchain",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "create admin transaction",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"debitAccount\":\"MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDAhBK2k113eckY5T6U1sefAvFfGupoCd+K37vzU7ueh/o5OZoeg7qsASxj5XQMeffsr1kd+HxRc47HaoL9rPxpEun1onU0ZJkgYklZPXcvrbfFq6FKzsJZf8rnuBSY78RyvOMrrAKR0z1fxmUb03eezNnv2vhFMP8AGF2FybnSJQIDAQAB\",\r\n    \"creditAccount\":\"{{$timestamp}}\",\r\n    \"amount\":2000\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{HOST_API}}/transaction",
+					"host": [
+						"{{HOST_API}}"
+					],
+					"path": [
+						"transaction"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create transaction",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"debitAccount\":\"A\",\r\n    \"creditAccount\":\"C\",\r\n    \"amount\":500\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{HOST_API}}/transaction",
+					"host": [
+						"{{HOST_API}}"
+					],
+					"path": [
+						"transaction"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "View Balance",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{HOST_API}}/balance",
+					"host": [
+						"{{HOST_API}}"
+					],
+					"path": [
+						"balance"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
