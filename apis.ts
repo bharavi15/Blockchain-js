@@ -12,8 +12,8 @@ router.post('/transaction', async (req, res) => {
   }
 })
 
-router.get('/balance', async (req, res) => {
-  res.send(findAllAccountBalance())  
+router.get('/balance', (req, res) => {
+  res.send(findAllAccountBalance())
 })
 
 router.use((err: any, req: any, res: any, next: any) => {
