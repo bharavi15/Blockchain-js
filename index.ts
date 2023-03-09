@@ -1,7 +1,7 @@
-import app from './app'
-import http from 'http'
 import * as dotenv from 'dotenv'
 dotenv.config()
+import app from './app'
+import http from 'http'
 
 const sv = new http.Server(app)
 const port = process.env.PORT ?? 3000
