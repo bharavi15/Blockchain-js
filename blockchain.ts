@@ -3,15 +3,22 @@ import { Itransaction } from './transaction'
 import { getSha256 } from './util'
 const MAX_TXN_PER_BLOCK = process.env.MAX_TXN_PER_BLOCK ?? 2
 const blockchain: Iblock[] = []
-let block: Iblock = {
+let genesisBlock: Iblock = {
     transactions: [],
     prevHash: '0000000000000000000000000000000000000000000000000000000000000000'
 }
 let isFirstBlock = true
-blockchain.push(block)
+blockchain.push(genesisBlock)
+
 export async function doTransaction(debitAccount: string, creditAccount: string, amount: number): Promise<boolean> {
-    debugger;
     const timestamp = new Date().getTime()
+
+    const accountBalance = findAccountBalance(blockchain, getSha256(debitAccount)) 
+    if (accountBalance < amount) {
+        console.log('Invalid transaction, please try again')
+        throw new Error('Invalid transaction')
+    }
+
     const transaction: Itransaction = {
         timestamp,
         debitAccount: getSha256(debitAccount),
@@ -19,39 +26,27 @@ export async function doTransaction(debitAccount: string, creditAccount: string,
         amount,
         txnHash: getSha256(timestamp + debitAccount + creditAccount + amount)
     }
-    const accountBalance = findAccountBalance(blockchain, getSha256(debitAccount)) +
-        findAccountBalance([block], getSha256(debitAccount))
-    if (accountBalance < amount) {
-        console.log('Invalid transaction, please try again')
-        throw new Error('Invalid transaction')
-    }
-    block.transactions.push(transaction)
-    
-    if (block.transactions.length >= MAX_TXN_PER_BLOCK) {
-        if (!isFirstBlock) {
-            blockchain.push(block)
-        }
+
+    let currentBlock = blockchain[blockchain.length - 1]
+    console.log('currentBlock',currentBlock)
+    if (currentBlock.transactions.length >= MAX_TXN_PER_BLOCK) {
         isFirstBlock = false
         let hash = ''
-        block.transactions.forEach((transaction) => { hash += transaction.txnHash })
-        block = {
+        currentBlock.transactions.forEach((transaction) => { hash += transaction.txnHash })
+        console.log('hash',hash)
+        currentBlock = {
             transactions: [],
             prevHash: getSha256(hash)
         }
+        if (!isFirstBlock) {
+            blockchain.push({...currentBlock})
+        }
     }
+   
+    currentBlock.transactions.push(transaction)
     return true
 }
 
-function findAllAccounts(blocks: Iblock[]): string[] {
-    const accounts: any = {}
-    for (const block of blocks) {
-        for (const txn of block.transactions) {
-            accounts[txn.debitAccount] = true
-            accounts[txn.creditAccount] = true
-        }
-    }
-    return Object.keys(accounts)
-}
 
 export function findAccountBalance(blocks: Iblock[], accountName: string): number {
     if (accountName === getSha256(process.env.ADMIN_PUBLIC_KEY || '')) { return Number.MAX_VALUE }
@@ -83,6 +78,7 @@ function findAccountBalanceForBlock(block: Iblock, accountName: string): number 
     return accountBalance
 }
 export function printBlockchain() {
+    console.log('++++++++++++++++++++++++++++')
     console.log(JSON.stringify(blockchain))
     console.log('============================')
 }
