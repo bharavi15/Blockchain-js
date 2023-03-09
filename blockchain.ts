@@ -47,6 +47,26 @@ export async function doTransaction(debitAccount: string, creditAccount: string,
     return true
 }
 
+export function findAllAccounts(): string[] {
+    const accounts: any = {}
+    for (const block of blockchain) {
+        for (const txn of block.transactions) {
+            accounts[txn.debitAccount] = true
+            accounts[txn.creditAccount] = true
+        }
+    }
+    delete accounts[getSha256(process.env.ADMIN_PUBLIC_KEY || '')]
+    return Object.keys(accounts)
+}
+
+export function findAllAccountBalance():any{
+    const balances:any = {}
+    const accounts = findAllAccounts()
+    for(let account of accounts){
+       balances[account] =  findAccountBalance(blockchain, account)
+    }
+    return balances
+}
 
 export function findAccountBalance(blocks: Iblock[], accountName: string): number {
     if (accountName === getSha256(process.env.ADMIN_PUBLIC_KEY || '')) { return Number.MAX_VALUE }

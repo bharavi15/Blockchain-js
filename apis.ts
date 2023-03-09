@@ -1,6 +1,5 @@
 import { Router, json } from 'express'
-// import { doTransaction, findAllAccountBalance, printBlockchain } from './blockchain'
-import { doTransaction, printBlockchain } from './blockchain'
+import { doTransaction, findAllAccountBalance, printBlockchain } from './blockchain'
 const router = Router()
 router.use(json())
 router.post('/transaction', async (req, res) => {
@@ -11,6 +10,10 @@ router.post('/transaction', async (req, res) => {
   } catch (error: any) {
     res.status(400).send({ error: error.message })
   }
+})
+
+router.get('/balance', async (req, res) => {
+  res.send(findAllAccountBalance())  
 })
 
 router.use((err: any, req: any, res: any, next: any) => {
