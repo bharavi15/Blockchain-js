@@ -3,6 +3,7 @@ import { Itransaction } from './transaction'
 import { getSha256 } from './util'
 const MAX_TXN_PER_BLOCK = process.env.MAX_TXN_PER_BLOCK ?? 2
 const ADMIN_PUBLIC_KEY = process.env.ADMIN_PUBLIC_KEY ?? ''
+const CURRENT_BLOCK_HASH = process.env.CURRENT_BLOCK_HASH ?? 'block:currentHash'
 const blockchain: Iblock[] = []
 const genesisBlock: Iblock = {
   transactions: [],

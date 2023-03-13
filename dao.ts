@@ -1,23 +1,25 @@
 import { createClient } from 'redis'
-
-export async function getValue (key: string) {
-  const client = createClient()
-
-  client.on('error', err => console.log('Redis Client Error', err))
-
-  await client.connect()
-
-  await client.set('key', 'value')
-  const value = await client.get('key')
+const client = createClient()
+export async function getDbValue (key: string) {
+  if(!client.isReady){
+    await getRedisClient()
+  }
+  const value = await client.get(key)
+  console.log('key',key,'has value', value)
   return value
 }
 
-export async function setValue (key: string, value: string) {
-  const client = createClient()
+export async function setDbValue (key: string, value: string) {
+  if(!client.isReady){
+    await getRedisClient()
+  }
 
-  client.on('error', err => console.log('Redis Client Error', err))
-
+  return await client.set(key, value)
+}
+export async function getRedisClient(){
+  if(client.isReady){
+    return client;
+  }
   await client.connect()
-
-  await client.set(key, value)
+  return client
 }

@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc --watch",
-    "lint": "ts-standard --fix"
+    "lint": "ts-standard --fix",
+    "dev": "nodemon .\\out\\index.js"
   },
   "keywords": [],
   "author": "Bharavi Lakhote",
