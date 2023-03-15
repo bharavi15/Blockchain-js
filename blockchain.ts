@@ -1,21 +1,21 @@
 import { Iblock } from './block'
+import { delDbValue, getDbValue, setDbValue } from './dao'
 import { Itransaction } from './transaction'
 import { getSha256 } from './util'
 const MAX_TXN_PER_BLOCK = process.env.MAX_TXN_PER_BLOCK ?? 2
 const ADMIN_PUBLIC_KEY = process.env.ADMIN_PUBLIC_KEY ?? ''
-const CURRENT_BLOCK_HASH = process.env.CURRENT_BLOCK_HASH ?? 'block:currentHash'
-const blockchain: Iblock[] = []
+const BLOCK_HASH_CACHE_PREFIX = process.env.BLOCK_HASH_CACHE_PREFIX ?? 'block:currentHash:'
+const GENESIS_BLOCK_HASH = process.env.GENESIS_BLOCK_HASH ?? '0000000000000000000000000000000000000000000000000000000000000000'
+const CURRENT_BLOCK_HASH_CACHE_KEY = process.env.CURRENT_BLOCK_HASH_CACHE_KEY ?? 'block_current_hash'
 const genesisBlock: Iblock = {
   transactions: [],
-  prevHash: '0000000000000000000000000000000000000000000000000000000000000000'
+  prevHash: GENESIS_BLOCK_HASH
 }
-let isFirstBlock = true
-blockchain.push(genesisBlock)
 
-export async function doTransaction (debitAccount: string, creditAccount: string, amount: number): Promise<boolean> {
+export async function doTransaction(debitAccount: string, creditAccount: string, amount: number): Promise<boolean> {
   const timestamp = new Date().getTime()
 
-  const accountBalance = findAccountBalance(blockchain, getSha256(debitAccount))
+  const accountBalance = await findAccountBalance(getSha256(debitAccount))
   if (accountBalance < amount) {
     console.log('Invalid transaction, please try again')
     throw new Error('Invalid transaction')
@@ -29,52 +29,62 @@ export async function doTransaction (debitAccount: string, creditAccount: string
     txnHash: getSha256(`${timestamp}${debitAccount}${creditAccount}${amount}`)
   }
 
-  let currentBlock = blockchain[blockchain.length - 1]
+  let currentBlock = JSON.parse(await getDbValue(await getDbValue(CURRENT_BLOCK_HASH_CACHE_KEY)))
   console.log('currentBlock', currentBlock)
   if (currentBlock.transactions.length >= MAX_TXN_PER_BLOCK) {
-    isFirstBlock = false
-    let hash = ''
-    currentBlock.transactions.forEach((transaction) => { hash = `${hash}${transaction.txnHash}` })
+    const hash = findBlockHash(currentBlock)
     console.log('hash', hash)
+    currentBlock.currentHash = hash
+    await setDbValue(BLOCK_HASH_CACHE_PREFIX+hash,JSON.stringify(currentBlock))
     currentBlock = {
       transactions: [],
-      prevHash: getSha256(hash)
-    }
-    if (!isFirstBlock) {
-      blockchain.push({ ...currentBlock })
+      prevHash: hash
     }
   }
-
   currentBlock.transactions.push(transaction)
+  await delDbValue(BLOCK_HASH_CACHE_PREFIX+currentBlock.currHash)
+  currentBlock.currHash = findBlockHash(currentBlock)
+  await setDbValue(BLOCK_HASH_CACHE_PREFIX+currentBlock.currHash,JSON.stringify(currentBlock))
+  await setDbValue(CURRENT_BLOCK_HASH_CACHE_KEY,BLOCK_HASH_CACHE_PREFIX+currentBlock.currHash)
   return true
 }
 
-export function findAllAccounts (): string[] {
+export async function findAllAccounts(): Promise<string[]> {
   const accounts: any = {}
-  for (const block of blockchain) {
-    for (const txn of block.transactions) {
+  let currentBlock = JSON.parse(await getDbValue(await getDbValue(CURRENT_BLOCK_HASH_CACHE_KEY)))
+  console.log(currentBlock)
+  while (currentBlock.prevHash && currentBlock.prevHash != GENESIS_BLOCK_HASH) {
+    for (const txn of currentBlock.transactions) {
       accounts[txn.debitAccount] = true
       accounts[txn.creditAccount] = true
     }
+    currentBlock = JSON.parse(await getDbValue(currentBlock.prevHash))
+  }
+  for (const txn of currentBlock.transactions) {
+    accounts[txn.debitAccount] = true
+    accounts[txn.creditAccount] = true
   }
   delete accounts[getSha256(ADMIN_PUBLIC_KEY)]
+  console.log('accounts:',accounts)
   return Object.keys(accounts)
 }
 
-export function findAllAccountBalance (): any {
+export async function findAllAccountBalance(): Promise<any> {
   const balances: any = {}
-  const accounts = findAllAccounts()
+  const accounts = await findAllAccounts()
   for (const account of accounts) {
-    balances[account] = findAccountBalance(blockchain, account)
+    balances[account] = findAccountBalance(account)
   }
   return balances
 }
 
-export function findAccountBalance (blocks: Iblock[], accountName: string): number {
+export async function findAccountBalance(accountName: string): Promise<number> {
   if (accountName === getSha256(ADMIN_PUBLIC_KEY)) { return Number.MAX_VALUE }
   let accountBalance = 0
-  for (const block of blocks) {
-    for (const txn of block.transactions) {
+  let currentBlock = JSON.parse(await getDbValue(await getDbValue(CURRENT_BLOCK_HASH_CACHE_KEY)))
+  
+  while (currentBlock.prevHash && currentBlock.prevHash != GENESIS_BLOCK_HASH) {
+    for (const txn of currentBlock.transactions) {
       if (txn.debitAccount === accountName) {
         accountBalance -= txn.amount
       }
@@ -82,12 +92,22 @@ export function findAccountBalance (blocks: Iblock[], accountName: string): numb
         accountBalance += txn.amount
       }
     }
+    currentBlock = JSON.parse(await getDbValue(currentBlock.prevHash))
+  }
+  for (const txn of currentBlock.transactions) {
+    if (txn.debitAccount === accountName) {
+      accountBalance -= txn.amount
+    }
+    if (txn.creditAccount === accountName) {
+      accountBalance += txn.amount
+    }
   }
   return accountBalance
 }
 
-export function printBlockchain (): void {
-  console.log('++++++++++++++++++++++++++++')
-  console.log(JSON.stringify(blockchain))
-  console.log('============================')
+
+function findBlockHash(block: Iblock): string {
+  let hash = '';
+  block.transactions.forEach((transaction) => { hash = `${hash}${transaction.txnHash}` })
+  return getSha256(hash+block.prevHash);
 }
