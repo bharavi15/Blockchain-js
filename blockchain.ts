@@ -4,7 +4,7 @@ import { Itransaction } from './transaction'
 import { getSha256 } from './util'
 const MAX_TXN_PER_BLOCK = process.env.MAX_TXN_PER_BLOCK ?? 2
 const ADMIN_PUBLIC_KEY = process.env.ADMIN_PUBLIC_KEY ?? ''
-const BLOCK_HASH_CACHE_PREFIX = process.env.BLOCK_HASH_CACHE_PREFIX ?? 'block:currentHash:'
+const BLOCK_HASH_CACHE_PREFIX = process.env.BLOCK_HASH_CACHE_PREFIX ?? 'block:hash:'
 const GENESIS_BLOCK_HASH = process.env.GENESIS_BLOCK_HASH ?? '0000000000000000000000000000000000000000000000000000000000000000'
 const CURRENT_BLOCK_HASH_CACHE_KEY = process.env.CURRENT_BLOCK_HASH_CACHE_KEY ?? 'block_current_hash'
 const genesisBlock: Iblock = {
@@ -58,7 +58,7 @@ export async function findAllAccounts(): Promise<string[]> {
       accounts[txn.debitAccount] = true
       accounts[txn.creditAccount] = true
     }
-    currentBlock = JSON.parse(await getDbValue(currentBlock.prevHash))
+    currentBlock = JSON.parse(BLOCK_HASH_CACHE_PREFIX+await getDbValue(currentBlock.prevHash))
   }
   for (const txn of currentBlock.transactions) {
     accounts[txn.debitAccount] = true
@@ -70,10 +70,10 @@ export async function findAllAccounts(): Promise<string[]> {
 }
 
 export async function findAllAccountBalance(): Promise<any> {
-  const balances: any = {}
+  const balances: { [key: string]: number} = {}
   const accounts = await findAllAccounts()
   for (const account of accounts) {
-    balances[account] = findAccountBalance(account)
+    balances[account] = await findAccountBalance(account)
   }
   return balances
 }
@@ -92,7 +92,7 @@ export async function findAccountBalance(accountName: string): Promise<number> {
         accountBalance += txn.amount
       }
     }
-    currentBlock = JSON.parse(await getDbValue(currentBlock.prevHash))
+    currentBlock = JSON.parse(BLOCK_HASH_CACHE_PREFIX+await getDbValue(currentBlock.prevHash))
   }
   for (const txn of currentBlock.transactions) {
     if (txn.debitAccount === accountName) {
