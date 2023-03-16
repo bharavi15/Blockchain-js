@@ -12,7 +12,7 @@ router.post('/transaction', async (req, res) => {
   }
 })
 
-router.get('/balance',async (req, res) => {
+router.get('/balance', async (req, res) => {
   res.send(await findAllAccountBalance())
 })
 
