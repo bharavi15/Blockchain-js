@@ -9,4 +9,8 @@ app.use('/api', apis)
 app.get('/', function (req, res) {
   res.send('Hello world')
 })
+
+app.use((req,res)=>{
+  res.status(404).send({"error":"Not Found"})
+})
 export default app
