@@ -12,7 +12,7 @@ initialize().then(() => {
   sv.listen(port, function () {
     console.log(`listening on http://localhost:${port}`)
   })
-}).catch((err)=>{
+}).catch((err) => {
   console.log('failed to start server')
   console.log(err)
 })

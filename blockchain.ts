@@ -1,7 +1,8 @@
 import { Iblock } from './block'
 import { delDbValue, getDbValue, setDbValue } from './dao'
 import { Itransaction } from './transaction'
-import { getSha256 } from './util'
+import { getSha256, getSha256Buffer } from './util'
+import {MerkleTree}  from 'merkletreejs'
 const MAX_TXN_PER_BLOCK = process.env.MAX_TXN_PER_BLOCK ?? 2
 const ADMIN_PUBLIC_KEY = process.env.ADMIN_PUBLIC_KEY ?? ''
 const BLOCK_HASH_CACHE_PREFIX = process.env.BLOCK_HASH_CACHE_PREFIX ?? 'block:hash:'
@@ -105,4 +106,11 @@ function findBlockHash (block: Iblock): string {
   let hash = ''
   block.transactions.forEach((transaction) => { hash = `${hash}${transaction.txnHash}` })
   return getSha256(hash + block.prevHash)
+}
+
+function findBlockHashWithMerkle (block: Iblock): string {
+  let txnHashes = block.transactions.map((transaction) => transaction.txnHash).map((hash) =>getSha256Buffer(hash))
+  const tree = new MerkleTree(txnHashes, getSha256Buffer)
+  const root = tree.getRoot().toString('hex')
+  return getSha256(root + block.prevHash)
 }
