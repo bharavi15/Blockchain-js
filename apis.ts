@@ -4,8 +4,8 @@ const router = Router()
 router.use(json())
 router.post('/transaction', async (req, res) => {
   try {
-    await doTransaction(req.body.debitAccount, req.body.creditAccount, req.body.amount)
-    res.send(req.body)
+   const transactionDetails = await doTransaction(req.body.debitAccount, req.body.creditAccount, req.body.amount)
+    res.send(transactionDetails)
   } catch (error: any) {
     console.log(error)
     res.status(400).send({ error: error.message })
