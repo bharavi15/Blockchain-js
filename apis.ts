@@ -1,10 +1,19 @@
 import { Router, json } from 'express'
-import { doTransaction, findAllAccountBalance } from './blockchain'
+import { doTransaction, findAllAccountBalance, searchTxnHashMerkleTree } from './blockchain'
 const router = Router()
 router.use(json())
 router.post('/transaction', async (req, res) => {
   try {
    const transactionDetails = await doTransaction(req.body.debitAccount, req.body.creditAccount, req.body.amount)
+    res.send(transactionDetails)
+  } catch (error: any) {
+    console.log(error)
+    res.status(400).send({ error: error.message })
+  }
+})
+router.post('/verify', async (req, res) => {
+  try {
+   const transactionDetails = await searchTxnHashMerkleTree(req.body.txnHash)
     res.send(transactionDetails)
   } catch (error: any) {
     console.log(error)

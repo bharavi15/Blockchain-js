@@ -3,4 +3,5 @@ export interface Iblock {
   transactions: Itransaction[]
   currHash?: string
   prevHash?: string
+  merkleRootHash?: string
 }

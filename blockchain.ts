@@ -2,7 +2,7 @@ import { Iblock } from './block'
 import { delDbValue, getDbValue, setDbValue } from './dao'
 import { Itransaction } from './transaction'
 import { getSha256, getSha256Buffer } from './util'
-import {MerkleTree}  from 'merkletreejs'
+import { MerkleTree } from 'merkletreejs'
 const MAX_TXN_PER_BLOCK = process.env.MAX_TXN_PER_BLOCK ?? 2
 const ADMIN_PUBLIC_KEY = process.env.ADMIN_PUBLIC_KEY ?? ''
 const BLOCK_HASH_CACHE_PREFIX = process.env.BLOCK_HASH_CACHE_PREFIX ?? 'block:hash:'
@@ -11,7 +11,7 @@ const CURRENT_BLOCK_HASH_CACHE_KEY = process.env.CURRENT_BLOCK_HASH_CACHE_KEY ??
 const LOG_PREFIX_FILE = 'blockchain | '
 const FN_START = 'START'
 const FN_END = 'END'
-export async function doTransaction (debitAccount: string, creditAccount: string, amount: number): Promise<Itransaction> {
+export async function doTransaction(debitAccount: string, creditAccount: string, amount: number): Promise<Itransaction> {
   const LOG_PREFIX_FN = LOG_PREFIX_FILE + 'doTransaction' + ' | '
   console.log(`${LOG_PREFIX_FN}${FN_START}`)
   const timestamp = new Date().getTime()
@@ -34,6 +34,7 @@ export async function doTransaction (debitAccount: string, creditAccount: string
   let currentBlock = JSON.parse(await getDbValue(await getDbValue(CURRENT_BLOCK_HASH_CACHE_KEY)))
   console.log(`${LOG_PREFIX_FN}currentBlock = ${JSON.stringify(currentBlock)}`)
   if (currentBlock.transactions.length >= MAX_TXN_PER_BLOCK) {
+    currentBlock.merkleRootHash = findBlockHashWithMerkle(currentBlock)
     const hash = findBlockHash(currentBlock)
     console.log(`${LOG_PREFIX_FN} hash =  ${hash}`)
     currentBlock.currHash = hash
@@ -45,6 +46,7 @@ export async function doTransaction (debitAccount: string, creditAccount: string
   }
   currentBlock.transactions.push(transaction)
   await delDbValue(BLOCK_HASH_CACHE_PREFIX + currentBlock.currHash)
+  currentBlock.merkleRootHash = findBlockHashWithMerkle(currentBlock)
   currentBlock.currHash = findBlockHash(currentBlock)
   await setDbValue(BLOCK_HASH_CACHE_PREFIX + currentBlock.currHash, JSON.stringify(currentBlock))
   await setDbValue(CURRENT_BLOCK_HASH_CACHE_KEY, BLOCK_HASH_CACHE_PREFIX + currentBlock.currHash)
@@ -52,7 +54,7 @@ export async function doTransaction (debitAccount: string, creditAccount: string
   return transaction
 }
 
-export async function findAllAccounts (): Promise<string[]> {
+export async function findAllAccounts(): Promise<string[]> {
   const LOG_PREFIX_FN = LOG_PREFIX_FILE + 'findAllAccounts' + ' | '
   console.log(`${LOG_PREFIX_FN}${FN_START}`)
   const accounts: any = {}
@@ -65,7 +67,7 @@ export async function findAllAccounts (): Promise<string[]> {
     }
     currentBlock = JSON.parse(await getDbValue(BLOCK_HASH_CACHE_PREFIX + currentBlock.prevHash))
   }
-  for (const txn of currentBlock.transactions|| []) {
+  for (const txn of currentBlock.transactions || []) {
     accounts[txn.debitAccount] = true
     accounts[txn.creditAccount] = true
   }
@@ -76,7 +78,7 @@ export async function findAllAccounts (): Promise<string[]> {
   return Object.keys(accounts)
 }
 
-export async function findAllAccountBalance (): Promise<any> {
+export async function findAllAccountBalance(): Promise<any> {
   const LOG_PREFIX_FN = LOG_PREFIX_FILE + 'findAllAccountBalance' + ' | '
   console.log(`${LOG_PREFIX_FN}${FN_START}`)
   const balances: { [key: string]: number } = {}
@@ -88,7 +90,7 @@ export async function findAllAccountBalance (): Promise<any> {
   return balances
 }
 
-export async function findAccountBalance (accountName: string): Promise<number> {
+export async function findAccountBalance(accountName: string): Promise<number> {
   const LOG_PREFIX_FN = LOG_PREFIX_FILE + 'findAccountBalance' + ' | '
   console.log(`${LOG_PREFIX_FN}${FN_START}`)
   if (accountName === getSha256(ADMIN_PUBLIC_KEY)) { return Number.MAX_VALUE }
@@ -106,7 +108,7 @@ export async function findAccountBalance (accountName: string): Promise<number> 
     }
     currentBlock = JSON.parse(await getDbValue(BLOCK_HASH_CACHE_PREFIX + currentBlock.prevHash))
   }
-  for (const txn of currentBlock.transactions|| []) { 
+  for (const txn of currentBlock.transactions || []) {
     if (txn.debitAccount === accountName) {
       accountBalance -= txn.amount
     }
@@ -118,18 +120,59 @@ export async function findAccountBalance (accountName: string): Promise<number> 
   return accountBalance
 }
 
-function findBlockHash (block: Iblock): string {
+function findBlockHash(block: Iblock): string {
   const LOG_PREFIX_FN = LOG_PREFIX_FILE + 'findBlockHash' + ' | '
   console.log(`${LOG_PREFIX_FN}${FN_START}`)
   let hash = ''
   block.transactions.forEach((transaction) => { hash = `${hash}${transaction.txnHash}` })
   console.log(`${LOG_PREFIX_FN}${FN_END}`)
-  return getSha256(hash + block.prevHash)
+  return getSha256(hash + block.prevHash + block.merkleRootHash)
 }
 
-function findBlockHashWithMerkle (block: Iblock): string {
-  let txnHashes = block.transactions.map((transaction) => transaction.txnHash).map((hash) =>getSha256Buffer(hash))
-  const tree = new MerkleTree(txnHashes, getSha256Buffer)
-  const root = tree.getRoot().toString('hex')
+function findBlockHashWithMerkle(block: Iblock): string {
+  const root = findBlockHashWithMerkleBuffer(block)
+  return root.toString('hex')
+}
+function findBlockHashWithMerkleBuffer(block: Iblock):  Buffer {
+  const tree = generateMerkleTree(block)
+  const root = tree.getRoot()
   return root
+}
+
+export function generateMerkleTree(block: Iblock): MerkleTree {
+  
+  let txnHashes = block.transactions.map((transaction) => getSha256Buffer(transaction.txnHash))
+  //Hackish way because library does not support only one element merkle tree
+  if(txnHashes.length===1){
+    txnHashes = [txnHashes[0],txnHashes[0]]
+  }
+  for(let tnxHash of txnHashes) {
+    console.log('Hash: ' + tnxHash.toString('hex'))
+  }
+  return new MerkleTree(txnHashes, getSha256Buffer)
+}
+
+
+export async function searchTxnHashMerkleTree(txnHash: string): Promise<boolean> {
+  const LOG_PREFIX_FN = LOG_PREFIX_FILE + 'searchTxnHashMerkleTree' + ' | '
+  console.log(`${LOG_PREFIX_FN}${FN_START}`)
+  let currentBlock = JSON.parse(await getDbValue(await getDbValue(CURRENT_BLOCK_HASH_CACHE_KEY)))
+  while (currentBlock.prevHash && currentBlock.prevHash !== GENESIS_BLOCK_HASH) {
+    const tree = generateMerkleTree(currentBlock)
+    const root = Buffer.from(currentBlock.merkleRootHash,'hex')
+    const leaf = getSha256Buffer(txnHash)
+    const proof = tree.getProof(leaf)
+    if (tree.verify(proof, leaf, root))
+      return true
+    currentBlock = JSON.parse(await getDbValue(BLOCK_HASH_CACHE_PREFIX + currentBlock.prevHash))
+  }
+  //TODO Process genesis bloc
+  const tree = generateMerkleTree(currentBlock)
+  const root = Buffer.from(currentBlock.merkleRootHash,'hex')
+  const leaf = getSha256Buffer(txnHash)
+  const proof = tree.getProof(leaf)
+  if (tree.verify(proof, leaf, root))
+    return true
+  console.log(`${LOG_PREFIX_FN}${FN_END}`)
+  return false
 }

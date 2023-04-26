@@ -28,7 +28,8 @@ async function initialize () {
   const genesisBlock: Iblock = {
     transactions: [],
     prevHash: GENESIS_BLOCK_HASH,
-    currHash: GENESIS_BLOCK_HASH
+    currHash: GENESIS_BLOCK_HASH,
+    merkleRootHash: GENESIS_BLOCK_HASH
   }
 
   await setDbValue(BLOCK_HASH_CACHE_PREFIX + GENESIS_BLOCK_HASH, JSON.stringify(genesisBlock))
